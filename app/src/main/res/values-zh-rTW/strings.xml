@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App & General -->
+    <string name="app_name">無障礙自動朗讀器</string>
+    <string name="app_name_short">AAR</string>
+    <string name="zero_network_badge">100% 本地離線 • 零網路存取</string>
+
+    <!-- Accessibility Service -->
+    <string name="accessibility_service_name">AAR 無障礙自動朗讀服務</string>
+    <string name="accessibility_service_description">AAR 無障礙自動朗讀服務可解析當前螢幕的可視文字，透過系統語音引擎 (TTS) 即時逐句朗讀，並在讀完後自動向下捲動頁面以提供連續閱讀體驗。本服務 100% 本地離線運作，無任何網路連線權限。</string>
+    <string name="accessibility_service_summary">連續螢幕朗讀與自動向下捲動翻頁</string>
+
+    <!-- Quick Settings Tile -->
+    <string name="tile_reader_label">自動朗讀</string>
+    <string name="tile_state_disabled">服務未啟用</string>
+    <string name="tile_state_idle">待機中</string>
+    <string name="tile_state_reading">朗讀中</string>
+    <string name="tile_state_paused">已暫停</string>
+    <string name="tile_desc_disabled">自動朗讀服務尚未於系統設定中啟用。點擊以開啟設定。</string>
+    <string name="tile_desc_idle">自動朗讀服務已就緒。點擊以開始朗讀。</string>
+    <string name="tile_desc_reading">自動朗讀服務正在朗讀中。點擊以暫停。</string>
+
+    <!-- Prominent Disclosure Dialog -->
+    <string name="disclosure_dialog_title">無障礙服務使用聲明與隱私保護</string>
+    <string name="disclosure_intro">AAR 需要使用 Android 無障礙服務 (AccessibilityService) 權限以提供螢幕朗讀與自動翻頁功能。請詳閱以下使用說明與隱私保護政策：</string>
+    <string name="disclosure_item_reading_title">螢幕文字讀取</string>
+    <string name="disclosure_item_reading_desc">讀取您當前螢幕上的可視文字，並轉交給系統原生語音引擎 (TTS) 進行逐句語音朗讀。</string>
+    <string name="disclosure_item_gestures_title">自動翻頁手勢</string>
+    <string name="disclosure_item_gestures_desc">在當前畫面文字朗讀完畢後，自動向下捲動或派發模擬滑動手勢，實現免動手連續閱讀。</string>
+    <string name="disclosure_item_privacy_title">零資料收集與 100% 本地離線承諾</string>
+    <string name="disclosure_item_privacy_desc">本應用完全未宣告網路權限 (無 android.permission.INTERNET)，絕無連網外傳可能。所有處理均在您的裝置本地進行，文字僅於記憶體暫存供即時語音合成，絕不寫入儲存空間或任何記錄。</string>
+    <string name="disclosure_item_security_title">防敏感畫面與密碼保護</string>
+    <string name="disclosure_item_security_desc">密碼輸入框 (isPassword == true) 及受保護的安全畫面將自動嚴格跳過，絕不讀取。</string>
+    <string name="disclosure_action_agree">同意並前往啟用</string>
+    <string name="disclosure_action_deny">暫不啟用</string>
+
+    <!-- Main Settings UI -->
+    <string name="settings_title">AAR 設定</string>
+    <string name="service_status_active">無障礙服務正常運作中</string>
+    <string name="service_status_disabled">無障礙服務尚未啟用</string>
+    <string name="service_enable_button">啟用無障礙服務</string>
+</resources>

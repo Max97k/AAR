@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App & General -->
+    <string name="app_name">Accessibility Auto-Reader</string>
+    <string name="app_name_short">AAR</string>
+    <string name="zero_network_badge">100% Offline • Zero Network Access</string>
+
+    <!-- Accessibility Service -->
+    <string name="accessibility_service_name">Auto-Reader Accessibility Service</string>
+    <string name="accessibility_service_description">Accessibility Auto-Reader inspects on-screen visible text, reads it aloud using the device native Text-to-Speech engine, and automatically scrolls down pages continuously. AAR runs 100% offline with zero internet access.</string>
+    <string name="accessibility_service_summary">Continuous screen reading and automated downward scrolling</string>
+
+    <!-- Quick Settings Tile -->
+    <string name="tile_reader_label">Auto Reader</string>
+    <string name="tile_state_disabled">Service Disabled</string>
+    <string name="tile_state_idle">Ready</string>
+    <string name="tile_state_reading">Reading</string>
+    <string name="tile_state_paused">Paused</string>
+    <string name="tile_desc_disabled">Auto Reader is disabled in settings. Click to enable.</string>
+    <string name="tile_desc_idle">Auto Reader is ready. Click to start reading.</string>
+    <string name="tile_desc_reading">Auto Reader is actively reading. Click to pause.</string>
+
+    <!-- Prominent Disclosure Dialog -->
+    <string name="disclosure_dialog_title">Accessibility Service &amp; Privacy Disclosure</string>
+    <string name="disclosure_intro">AAR requires the Android AccessibilityService API to provide screen reading and continuous automatic scrolling. Please review how this permission is used:</string>
+    <string name="disclosure_item_reading_title">Screen Text Extraction</string>
+    <string name="disclosure_item_reading_desc">Reads visible text on your active screen and transfers it to the device native Text-to-Speech (TTS) engine for sentence-by-sentence spoken playback.</string>
+    <string name="disclosure_item_gestures_title">Automated Scrolling Gestures</string>
+    <string name="disclosure_item_gestures_desc">Dispatches scroll actions or simulated upward swipe gestures when the visible text has been spoken, allowing continuous reading without touching the screen.</string>
+    <string name="disclosure_item_privacy_title">Zero Data Collection &amp; 100% Offline</string>
+    <string name="disclosure_item_privacy_desc">AAR does NOT declare or request internet permission (android.permission.INTERNET is completely absent). All processing occurs strictly on your device. Text is kept in memory only during speech synthesis and is never saved to disk or transmitted anywhere.</string>
+    <string name="disclosure_item_security_title">Sensitive Field &amp; Password Exclusion</string>
+    <string name="disclosure_item_security_desc">Password fields (isPassword == true) and secure screens are strictly filtered out and will never be accessed or read.</string>
+    <string name="disclosure_action_agree">Agree &amp; Enable</string>
+    <string name="disclosure_action_deny">Not Now</string>
+
+    <!-- Main Settings UI -->
+    <string name="settings_title">AAR Settings</string>
+    <string name="service_status_active">Service Active &amp; Bound</string>
+    <string name="service_status_disabled">Service Not Enabled</string>
+    <string name="service_enable_button">Enable Service</string>
+</resources>
