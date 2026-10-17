@@ -109,3 +109,26 @@ stateDiagram-v2
 * **100% 離線零網路權限：** `AndroidManifest.xml` **完全不宣告** `android.permission.INTERNET`。所有螢幕文字擷取僅存於記憶體佇列供本地系統 TTS 合成語音，絕不寫入磁碟日誌、絕不外傳。
 * **無障礙權限醒目揭露 (Prominent Disclosure)：** 於首次引導開啟無障礙服務前，透過 Material 3 對話框明確向使用者說明為何需要 `AccessibilityService`（擷取螢幕文字與自動翻頁）及零資料收集承諾，完全符合 Google Play 無障礙 API 政策。
 * **防敏感畫面誤讀保護：** 當偵測到目前視窗為密碼輸入框（`isPassword == true`）時自動跳過該節點。
+
+---
+
+## 6. 開發里程碑與驗收節點規劃 (Development Milestones)
+
+```mermaid
+flowchart LR
+    M1["M1: 專案基底與無障礙骨架"] --> M2["M2: DFS 視圖解析與智慧斷句"]
+    M2 --> M3["M3: 原生 TTS 與音訊焦點管理"]
+    M3 --> M4["M4: 雙軌自動捲動與指紋去重"]
+    M4 --> M5["M5: 懸浮膠囊 HUD 與 M3 設定頁"]
+    M5 --> M6["M6: Pixel 8 Pro 實機調校與發布"]
+```
+
+| 里程碑節點 | 階段名稱 | 核心交付項目 (Deliverables) | 驗收標準 (Definition of Done, DoD) |
+| :--- | :--- | :--- | :--- |
+| **M1** | **專案基底與無障礙服務骨架**<br>*(Foundation & Service Skeleton)* | • 建立 Gradle Kotlin DSL 專案（鎖定 `minSdk = 37`, `targetSdk = 37`, `compileSdk = 37`）與零網路權限 Manifest<br>• 實作 `AutoReaderAccessibilityService` 與 `accessibility_service_config.xml`<br>• 實作下拉快捷欄 `AutoReaderTileService` (QS Tile)<br>• 實作首次啟用無障礙權限之 M3 醒目揭露對話框 (Prominent Disclosure) | • 專案可成功編譯安裝於 Android 17 (API 37+) 環境<br>• 可於系統無障礙設定開啟服務，並透過系統下拉 QS 磁貼切換啟停狀態 |
+| **M2** | **DFS 視圖樹解析與智慧斷句引擎**<br>*(Screen Parser & Text Segmentation)* | • 實作 `ScreenTreeParser`：DFS 遍歷 `AccessibilityNodeInfo` 樹狀結構<br>• 實作不可視節點、`isPassword`、自身 Overlay 及控制鈕黑名單過濾器<br>• 實作螢幕絕對座標 (`getBoundsInScreen`) 由上至下、由左至右拓樸排序<br>• 實作中英標點符號句子級別（Sentence-level）智慧斷句器 | • 針對複雜排版畫面能輸出符合自然閱讀順序的乾淨句子佇列<br>• 通過 JUnit / Robolectric 視圖樹解析與排序單元測試 |
+| **M3** | **原生 TTS 語音控制器與音訊焦點**<br>*(TTS Engine & AudioFocus)* | • 實作 `TtsController` 與 `UtteranceProgressListener` 狀態回呼綁定<br>• 實作離線語音包檢查 (`isLanguageAvailable`) 與引導下載 Intent<br>• 支援 `zh-TW` / `en-US` 手動切換與段落字元比例自動語系偵測<br>• 整合 `AudioFocus` 與耳機拔除廣播 (`ACTION_AUDIO_BECOMING_NOISY`) 自動暫停 | • 單頁畫面文字可逐句連續朗讀，語速滑桿 (`0.5x ~ 2.0x`) 即時生效<br>• 模擬來電、鬧鐘搶佔音訊焦點或拔除耳機時能立即自動暫停 |
+| **M4** | **雙軌自動捲動、去重與觸底偵測**<br>*(Dual Auto-Scroll & Deduplication)* | • 實作 `AutoScrollEngine`：優先呼叫節點 `ACTION_SCROLL_FORWARD`，Fallback 至 `dispatchGesture()` 平滑上滑手勢<br>• 實作捲動後 `SETTLING` 穩定等待防抖（450ms debounce）<br>• 實作滑動視窗文字指紋去重（Sliding Window Fingerprint Ring Buffer）<br>• 實作觸底偵測、跨 App 切換鎖定、下拉通知欄凍結與螢幕關閉中斷保護 | • 長文跨頁朗讀時能自動翻頁、精準跳過頂部重疊已讀文字且不漏讀<br>• 到達頁面底部時自動播報完成並回到 `IDLE`<br>• 切換 App、拉下通知欄或鎖屏時立即停止捲動，絕不誤觸其他應用 |
+| **M5** | **懸浮控制膠囊、視覺高亮與 M3 UI**<br>*(Overlay HUD & Material 3 UI)* | • 實作免額外權限之 `TYPE_ACCESSIBILITY_OVERLAY` 懸浮控制膠囊（播放/暫停、上下句、語速、停止）<br>• 實作當前朗讀句子之即時螢幕視覺高亮外框（Reading Focus Highlight）<br>• 實作 Jetpack Compose M3 主設定介面 (`MainActivity`, `SettingsViewModel`) 與 Jetpack DataStore 偏好持久化 | • 懸浮膠囊可自由收合/操作，視覺高亮外框與當前朗讀句子同步移動<br>• DFS 掃描嚴格略過自身 Overlay 視窗<br>• 設定項目變更後透過 `StateFlow` 即時同步至無障礙服務 |
+| **M6** | **Pixel 8 Pro 實機調校與測試發布**<br>*(Testing, Profiling & Release)* | • 撰寫完整單元測試（FSM 狀態機、去重演算法、斷句器、DataStore）並產出 JaCoCo 覆蓋率報告<br>• 於 **Google Pixel 8 Pro** 進行跨應用（瀏覽器、電子書、社群軟體）長文連續朗讀與記憶體剖析<br>• 配置 R8 Full Mode 壓縮混淆規則 (`proguard-rules.pro`) 與 Release 建置 | • 單元測試 100% 通過，核心商業邏輯覆蓋率達標且零 Lint Error<br>• 連續朗讀 30 分鐘無 OOM 或節點洩漏<br>• 成功產出最小化 Release APK / AAB |
+

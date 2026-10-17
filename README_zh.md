@@ -117,6 +117,28 @@ stateDiagram-v2
 
 ---
 
+## 🗺️ 開發里程碑與階段規劃 (Development Milestones)
+
+```mermaid
+flowchart LR
+    M1["M1: 專案基底與無障礙骨架"] --> M2["M2: DFS 視圖解析與智慧斷句"]
+    M2 --> M3["M3: 原生 TTS 與音訊焦點管理"]
+    M3 --> M4["M4: 雙軌自動捲動與指紋去重"]
+    M4 --> M5["M5: 懸浮膠囊 HUD 與 M3 設定頁"]
+    M5 --> M6["M6: Pixel 8 Pro 實機調校與發布"]
+```
+
+| 里程碑 | 階段名稱 | 核心交付項目 (Deliverables) | 驗收標準 (Definition of Done) |
+| :--- | :--- | :--- | :--- |
+| **M1** | **專案基底與無障礙服務骨架** | • 建立 Gradle Kotlin DSL 專案（鎖定 `minSdk = 37`, 零網路權限）<br>• 實作 `AutoReaderAccessibilityService` 與 `accessibility_service_config.xml`<br>• 實作下拉快捷欄 `AutoReaderTileService` 與無障礙權限醒目揭露對話框 | 可於 Android 17 無障礙設定成功啟用服務，並透過系統下拉 QS 磁貼切換啟停狀態。 |
+| **M2** | **DFS 視圖樹解析與智慧斷句引擎** | • `ScreenTreeParser`：DFS 節點遍歷、不可視/密碼欄/控制鈕噪音過濾<br>• 螢幕絕對座標 (`getBoundsInScreen`) 由上至下、由左至右拓樸排序<br>• 中英標點符號句子級別（Sentence-level）智慧斷句器 | 針對複雜版面精準輸出自然閱讀順序之句子佇列，並通過 Robolectric 單元測試。 |
+| **M3** | **原生 TTS 語音控制器與音訊焦點** | • `TtsController` 封裝、`UtteranceProgressListener` 綁定與離線語音包檢查<br>• 支援 `zh-TW` / `en-US` 手動切換與中英字元比例自動語系偵測<br>• 整合 `AudioFocus` 與耳機拔除廣播 (`ACTION_AUDIO_BECOMING_NOISY`) 自動暫停 | 單頁可視文字可逐句流暢朗讀，語速 (`0.5x ~ 2.0x`) 即時生效，來電或拔耳機時自動暫停。 |
+| **M4** | **雙軌自動捲動、去重與觸底偵測** | • `AutoScrollEngine`：優先呼叫節點 `ACTION_SCROLL_FORWARD` + Fallback `dispatchGesture`<br>• 捲動後 `SETTLING` 穩定防抖 (450ms) 與滑動視窗文字指紋去重<br>• 頁面觸底偵測、跨 App 切換鎖定、下拉通知欄凍結與螢幕關閉中斷保護 | 長文跨頁朗讀自動翻頁、不重複朗讀頂部殘留段落，觸底自動播報完成，切換畫面時安全停止。 |
+| **M5** | **懸浮控制膠囊、視覺高亮與 M3 UI** | • 免額外權限 `TYPE_ACCESSIBILITY_OVERLAY` 懸浮控制膠囊与即時朗讀視覺高亮外框<br>• Jetpack Compose M3 主設定介面 (`MainActivity`, `SettingsViewModel`)<br>• Jetpack DataStore 偏好設定持久化與即時同步 | 懸浮膠囊與高亮外框跟隨朗讀句子即時同步，DFS 掃描嚴格排除自身 Overlay 視窗。 |
+| **M6** | **Pixel 8 Pro 實機調校與測試發布** | • JUnit 4、Robolectric 與 Coroutines Test 完整單元測試 + JaCoCo 覆蓋率報告<br>• **Google Pixel 8 Pro** 跨應用長文壓力測試、記憶體剖析與 R8 最佳化打包 | 零 Lint Error、核心邏輯覆蓋率 $\ge 85\%$，連續朗讀 30 分鐘無記憶體洩漏並產出 Release APK/AAB。 |
+
+---
+
 ## 📋 完整開發規格書
 
 關於更詳細的無障礙服務設定、DFS 座標排序演算法、TTS 語系套件檢查與雙軌自動捲動控制邏輯，請參閱：
