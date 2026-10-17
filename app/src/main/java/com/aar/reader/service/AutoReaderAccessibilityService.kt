@@ -25,6 +25,7 @@ import com.aar.reader.service.model.SentenceUnit
 import com.aar.reader.tts.AudioFocusManager
 import com.aar.reader.tts.TtsController
 import com.aar.reader.ui.overlay.OverlayHudController
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 
 /**
@@ -55,7 +57,11 @@ class AutoReaderAccessibilityService : AccessibilityService() {
 
     private var readingJob: Job? = null
     private var activeScrollableContainer: AccessibilityNodeInfo? = null
-    private var currentUtteranceDeferred: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+    private var currentUtteranceDeferred: CompletableDeferred<Boolean>? = null
+    private var lastScrollSucceeded: Boolean? = null
+
+    @Volatile
+    private var lastViewScrolledTimestampMs: Long = 0L
 
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -87,22 +93,51 @@ class AutoReaderAccessibilityService : AccessibilityService() {
             context = this,
             audioFocusManager = audioFocusManager,
             onUtteranceStarted = { uttId ->
-                ReaderStateController.onUtteranceStart(uttId)
+                if (uttId != COMPLETION_UTTERANCE_ID) {
+                    ReaderStateController.onUtteranceStart(uttId)
+                }
             },
             onUtteranceCompleted = { uttId ->
                 ReaderStateController.onUtteranceDone(uttId)
-                currentUtteranceDeferred?.complete(Unit)
+                currentUtteranceDeferred?.complete(true)
             },
             onUtteranceError = { uttId, err ->
                 Log.e(TAG, "TTS Utterance error on $uttId: code $err")
                 ReaderStateController.onUtteranceDone(uttId)
-                currentUtteranceDeferred?.complete(Unit)
+                currentUtteranceDeferred?.complete(false)
+            },
+            onUtteranceStopped = { uttId, _ ->
+                Log.d(TAG, "TTS Utterance stopped/interrupted: $uttId")
+                currentUtteranceDeferred?.complete(false)
             }
         )
         ttsController.initialize()
 
-        overlayHudController = OverlayHudController(this)
+        overlayHudController = OverlayHudController(
+            service = this,
+            onCycleSpeedRequested = {
+                serviceScope.launch {
+                    val currentRate = preferencesRepo.preferences.first().speechRate
+                    val nextRate = when {
+                        currentRate < 0.95f -> 1.0f
+                        currentRate < 1.2f -> 1.25f
+                        currentRate < 1.45f -> 1.5f
+                        currentRate < 1.9f -> 2.0f
+                        else -> 0.75f
+                    }
+                    preferencesRepo.updateSpeechRate(nextRate)
+                    ttsController.setSpeechRate(nextRate)
+                    overlayHudController.updateSpeedLabel(nextRate)
+                }
+            }
+        )
         overlayHudController.show()
+
+        // Wire skip listener so HUD skip buttons immediately interrupt current utterance
+        ReaderStateController.setOnSkipListener {
+            ttsController.stop()
+            currentUtteranceDeferred?.complete(false)
+        }
 
         // Register screen off receiver
         val screenFilter = IntentFilter(Intent.ACTION_SCREEN_OFF)
@@ -110,6 +145,13 @@ class AutoReaderAccessibilityService : AccessibilityService() {
 
         // Synchronize Quick Settings Tile
         requestTileUpdate(this)
+
+        // Observe preference changes for HUD speed badge sync
+        serviceScope.launch {
+            preferencesRepo.preferences.collect { prefs ->
+                overlayHudController.updateSpeedLabel(prefs.speechRate)
+            }
+        }
 
         // Observe FSM states to drive the reading loop
         serviceScope.launch {
@@ -129,17 +171,22 @@ class AutoReaderAccessibilityService : AccessibilityService() {
             }
             ReaderState.PAUSED -> {
                 readingJob?.cancel()
-                currentUtteranceDeferred?.cancel()
+                currentUtteranceDeferred?.complete(false)
                 ttsController.stop()
                 overlayHudController.updateHighlight(null, false)
             }
-            ReaderState.IDLE,
             ReaderState.COMPLETED -> {
+                // Keep readingJob and TTS active during COMPLETED so announceCompletion()
+                // can finish speaking before transitioning to IDLE.
+                overlayHudController.updateHighlight(null, false)
+            }
+            ReaderState.IDLE -> {
                 readingJob?.cancel()
-                currentUtteranceDeferred?.cancel()
+                currentUtteranceDeferred?.complete(false)
                 ttsController.stop()
                 deduplicationEngine.reset()
                 bottomDetector.reset()
+                lastScrollSucceeded = null
                 overlayHudController.updateHighlight(null, false)
             }
             else -> {
@@ -177,107 +224,134 @@ class AutoReaderAccessibilityService : AccessibilityService() {
                 screenHeight = screenBounds.height()
             )
 
+            // Evaluate bottom-of-page condition once per post-scroll scan cycle
+            val previousScrollResult = lastScrollSucceeded
+            lastScrollSucceeded = null
+            if (previousScrollResult != null) {
+                val isBottom = bottomDetector.onScrollAttempt(
+                    scrollSucceeded = previousScrollResult,
+                    newScreenSignature = parseResult.screenContentSignature,
+                    unreadCount = unreadSentences.size
+                )
+                if (isBottom && unreadSentences.isEmpty()) {
+                    Log.i(TAG, "Bottom of page reached after post-scroll verification.")
+                    ReaderStateController.updateState(ReaderState.COMPLETED)
+                    announceCompletion(prefs)
+                    ReaderStateController.stopReading()
+                    return@launch
+                }
+            } else {
+                bottomDetector.recordBaselineSignature(parseResult.screenContentSignature)
+            }
+
             if (unreadSentences.isNotEmpty()) {
-                // Read each sentence sequentially
-                for (sentence in unreadSentences) {
+                var index = 0
+                while (index in unreadSentences.indices) {
                     if (ReaderStateController.state.value != ReaderState.SCANNING &&
                         ReaderStateController.state.value != ReaderState.SPEAKING
                     ) {
                         return@launch
                     }
 
-                    ReaderStateController.setCurrentSentence(sentence)
-                    overlayHudController.updateHighlight(sentence.boundsInScreen, prefs.highlightEnabled)
+                    val sentence = unreadSentences[index]
+                    // Always fetch latest preferences for real-time speed/highlight updates
+                    val currentPrefs = preferencesRepo.preferences.first()
 
-                    val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
+                    ReaderStateController.setCurrentSentence(sentence)
+                    overlayHudController.updateHighlight(sentence.boundsInScreen, currentPrefs.highlightEnabled)
+
+                    val deferred = CompletableDeferred<Boolean>()
                     currentUtteranceDeferred = deferred
 
                     val spoken = ttsController.speak(
                         sentence = sentence,
-                        rate = prefs.speechRate,
-                        pitch = prefs.speechPitch,
-                        language = prefs.language
+                        rate = currentPrefs.speechRate,
+                        pitch = currentPrefs.speechPitch,
+                        language = currentPrefs.language
                     )
 
+                    var completedNormally = false
                     if (spoken) {
-                        kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                        completedNormally = withTimeoutOrNull(30_000L) {
                             deferred.await()
-                        }
+                        } ?: false
                     } else {
                         Log.w(TAG, "TTS speak returned false or not ready for sentence: ${sentence.id}")
                         delay(400)
+                        completedNormally = true
                     }
 
-                    deduplicationEngine.recordRead(sentence)
-
-                    if (prefs.pauseBetweenSentencesMs > 0) {
-                        delay(prefs.pauseBetweenSentencesMs)
+                    // Check if user requested skip forward/backward while speaking
+                    val skipDelta = ReaderStateController.consumePendingSkipDelta()
+                    if (skipDelta != 0) {
+                        if (skipDelta > 0) {
+                            // Mark skipped sentence as read so it is not re-read after scroll
+                            deduplicationEngine.recordRead(sentence)
+                        }
+                        index = (index + skipDelta).coerceAtLeast(0)
+                        continue
                     }
+
+                    // If paused or stopped mid-sentence, exit without marking sentence as read
+                    if (ReaderStateController.state.value != ReaderState.SCANNING &&
+                        ReaderStateController.state.value != ReaderState.SPEAKING
+                    ) {
+                        return@launch
+                    }
+
+                    if (completedNormally) {
+                        deduplicationEngine.recordRead(sentence)
+                    }
+
+                    if (currentPrefs.pauseBetweenSentencesMs > 0) {
+                        delay(currentPrefs.pauseBetweenSentencesMs)
+                    }
+                    index++
                 }
 
-                // Current viewport finished reading, trigger auto-scroll
-                triggerAutoScroll(prefs, screenBounds, parseResult.screenContentSignature, unreadSentences.size)
+                // Current viewport finished reading, record signature and trigger auto-scroll
+                val latestPrefs = preferencesRepo.preferences.first()
+                bottomDetector.recordBaselineSignature(parseResult.screenContentSignature)
+                triggerAutoScroll(latestPrefs, screenBounds)
             } else {
-                // Check if bottom reached
-                val isBottom = bottomDetector.onScrollAttempt(
-                    scrollSucceeded = true,
-                    newScreenSignature = parseResult.screenContentSignature,
-                    unreadCount = 0
-                )
-
-                if (isBottom) {
-                    Log.i(TAG, "Bottom of page reached.")
-                    ReaderStateController.updateState(ReaderState.COMPLETED)
-                    announceCompletion(prefs)
-                    ReaderStateController.stopReading()
-                } else {
-                    // Try another scroll to advance content
-                    triggerAutoScroll(prefs, screenBounds, parseResult.screenContentSignature, 0)
-                }
+                // No unread sentences on current viewport; attempt to scroll down for more content
+                triggerAutoScroll(prefs, screenBounds)
             }
         }
     }
 
     private suspend fun triggerAutoScroll(
         prefs: UserPreferences,
-        screenBounds: Rect,
-        screenSignature: Long,
-        unreadCount: Int
+        screenBounds: Rect
     ) {
         ReaderStateController.updateState(ReaderState.SCROLLING)
         overlayHudController.updateHighlight(null, false)
 
-        val scrollResult = AutoScrollEngine.triggerScroll(
+        val scrollResult = AutoScrollEngine.triggerScrollAwait(
             container = activeScrollableContainer,
             service = this,
             screenWidth = screenBounds.width(),
             screenHeight = screenBounds.height(),
-            preferGesture = (prefs.scrollMode == "GESTURE_ONLY")
+            preferGesture = (prefs.scrollMode == "GESTURE_ONLY"),
+            scrollPercent = prefs.scrollPercent
         )
 
-        val scrollSuccess = scrollResult != ScrollResult.Failed
+        lastScrollSucceeded = (scrollResult != ScrollResult.Failed)
 
-        // Transition to SETTLING debounce
+        // Transition to SETTLING debounce after scroll action / swipe gesture completes
         ReaderStateController.updateState(ReaderState.SETTLING)
         delay(AutoScrollEngine.SETTLING_DEBOUNCE_MS)
 
-        val isBottom = bottomDetector.onScrollAttempt(
-            scrollSucceeded = scrollSuccess,
-            newScreenSignature = screenSignature,
-            unreadCount = unreadCount
-        )
-
-        if (isBottom) {
-            Log.i(TAG, "Bottom detected after scroll failure or zero unread.")
-            ReaderStateController.updateState(ReaderState.COMPLETED)
-            announceCompletion(prefs)
-            ReaderStateController.stopReading()
-        } else {
-            ReaderStateController.onScrollSettled()
+        // If inertial fling is still emitting TYPE_VIEW_SCROLLED events, wait an extra debounce window
+        val elapsedSinceLastScrollEvent = System.currentTimeMillis() - lastViewScrolledTimestampMs
+        if (elapsedSinceLastScrollEvent in 0 until AutoScrollEngine.POST_SCROLL_EVENT_DEBOUNCE_MS) {
+            delay(AutoScrollEngine.POST_SCROLL_EVENT_DEBOUNCE_MS - elapsedSinceLastScrollEvent)
         }
+
+        ReaderStateController.onScrollSettled()
     }
 
-    private fun announceCompletion(prefs: UserPreferences) {
+    private suspend fun announceCompletion(prefs: UserPreferences) {
         val completionText = if (prefs.language.startsWith("ZH", ignoreCase = true) ||
             (prefs.language == "AUTO" && Locale.getDefault().language == "zh")
         ) {
@@ -285,8 +359,16 @@ class AutoReaderAccessibilityService : AccessibilityService() {
         } else {
             "Reached the bottom of content"
         }
-        val sentence = SentenceUnit(id = "completion_announcement", text = completionText)
-        ttsController.speak(sentence, prefs.speechRate, prefs.speechPitch, prefs.language)
+        val sentence = SentenceUnit(id = COMPLETION_UTTERANCE_ID, text = completionText)
+        val deferred = CompletableDeferred<Boolean>()
+        currentUtteranceDeferred = deferred
+
+        val spoken = ttsController.speak(sentence, prefs.speechRate, prefs.speechPitch, prefs.language)
+        if (spoken) {
+            withTimeoutOrNull(5_000L) {
+                deferred.await()
+            }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -356,13 +438,14 @@ class AutoReaderAccessibilityService : AccessibilityService() {
     }
 
     private fun handleViewScrolled(event: AccessibilityEvent) {
+        lastViewScrolledTimestampMs = System.currentTimeMillis()
         if (ReaderStateController.state.value == ReaderState.SETTLING) {
             Log.v(TAG, "View scroll event received during Settling.")
         }
     }
 
     private fun handleWindowContentChanged(event: AccessibilityEvent) {
-        // Handled reactively
+        // Handled reactively during post-scroll SCANNING
     }
 
     override fun onInterrupt() {
@@ -373,6 +456,7 @@ class AutoReaderAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         Log.i(TAG, "AutoReaderAccessibilityService destroying.")
+        ReaderStateController.setOnSkipListener(null)
         try {
             unregisterReceiver(screenOffReceiver)
         } catch (e: Exception) {
@@ -395,6 +479,7 @@ class AutoReaderAccessibilityService : AccessibilityService() {
 
     companion object {
         const val TAG = "AutoReaderService"
+        private const val COMPLETION_UTTERANCE_ID = "completion_announcement"
 
         @Volatile
         var isRunning: Boolean = false

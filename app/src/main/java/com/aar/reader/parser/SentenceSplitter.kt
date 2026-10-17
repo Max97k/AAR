@@ -75,12 +75,21 @@ object SentenceSplitter : ISentenceSplitter {
             val c = text[i]
             current.append(c)
             if (SENTENCE_ENDINGS.contains(c)) {
-                // Check if next char is also a punctuation mark like "！？" or quotation mark
-                val nextIsClosing = i + 1 < text.length && (
+                // Do not split on decimal points or version numbers (e.g., "3.14", "17.0")
+                val isDecimalPoint = c == '.' &&
+                    i > 0 && i + 1 < text.length &&
+                    text[i - 1].isDigit() && text[i + 1].isDigit()
+                if (isDecimalPoint) {
+                    continue
+                }
+
+                // Check if next char is a closing quotation mark/bracket or consecutive terminator (e.g. "？！", "...")
+                val nextIsClosingOrTerminator = i + 1 < text.length && (
                     text[i + 1] == '」' || text[i + 1] == '』' || text[i + 1] == '”' ||
-                    text[i + 1] == '"' || text[i + 1] == '\'' || text[i + 1] == ')' || text[i + 1] == '）'
+                    text[i + 1] == '"' || text[i + 1] == '\'' || text[i + 1] == ')' || text[i + 1] == '）' ||
+                    (SENTENCE_ENDINGS.contains(text[i + 1]) && text[i + 1] != '\n')
                 )
-                if (!nextIsClosing) {
+                if (!nextIsClosingOrTerminator) {
                     val s = current.toString().trim()
                     if (s.isNotEmpty()) {
                         list.add(s)

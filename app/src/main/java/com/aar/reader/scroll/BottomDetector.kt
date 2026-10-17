@@ -9,6 +9,17 @@ class BottomDetector(
     private var lastScreenSignature: Long? = null
     private var consecutiveZeroUnreadRounds: Int = 0
 
+    /**
+     * Records the pre-scroll screen content signature so that the first scroll attempt
+     * can accurately compare the post-scroll signature against the pre-scroll baseline.
+     */
+    @Synchronized
+    fun recordBaselineSignature(signature: Long) {
+        if (lastScreenSignature == null) {
+            lastScreenSignature = signature
+        }
+    }
+
     @Synchronized
     fun onScrollAttempt(
         scrollSucceeded: Boolean,

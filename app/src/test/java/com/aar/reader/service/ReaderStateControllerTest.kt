@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * 6. Stop reading from all 7 states ensuring atomic reset of target package and sentence
  * 7. Start reading and target package lock mechanics
  * 8. Concurrency stress testing ensuring zero invariant violations
+ * 9. Skip forward and backward delta tracking and listener notifications
  */
 class ReaderStateControllerTest {
 
@@ -27,6 +28,7 @@ class ReaderStateControllerTest {
 
     @Before
     fun setUp() {
+        controller.setOnSkipListener(null)
         controller.stopReading()
     }
 
@@ -400,5 +402,32 @@ class ReaderStateControllerTest {
 
         val violations = invariantViolations.get()
         assertEquals("Atomic invariant violated: observed state=IDLE with non-null targetPackage", 0, violations)
+    }
+
+    // ==========================================
+    // 9. Skip Forward & Backward Navigation
+    // ==========================================
+
+    @Test
+    fun `skipForward and skipBackward record delta only when SPEAKING or SCANNING`() {
+        var callbackDelta = 0
+        controller.setOnSkipListener { delta -> callbackDelta = delta }
+
+        // Ignored while IDLE
+        controller.skipForward()
+        assertEquals(0, controller.consumePendingSkipDelta())
+        assertEquals(0, callbackDelta)
+
+        // Active while SPEAKING
+        controller.startReading("com.example.app")
+        controller.onUtteranceStart("utt_1")
+        controller.skipForward()
+        assertEquals(1, callbackDelta)
+        assertEquals(1, controller.consumePendingSkipDelta())
+        assertEquals(0, controller.consumePendingSkipDelta())
+
+        controller.skipBackward()
+        assertEquals(-1, callbackDelta)
+        assertEquals(-1, controller.consumePendingSkipDelta())
     }
 }

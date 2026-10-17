@@ -61,6 +61,19 @@ class NoiseFilterTest {
     }
 
     @Test
+    fun shouldFilter_filtersSystemUiNodes() {
+        val attrs = NoiseFilter.NodeFilterAttributes(
+            isPassword = false,
+            isVisibleToUser = true,
+            packageName = "com.android.systemui",
+            bounds = testRect(0, 0, 1080, 80),
+            text = "19:56 85%"
+        )
+        assertTrue("SystemUI status/navigation bar nodes must be filtered",
+            NoiseFilter.shouldFilter(attrs, screenBounds))
+    }
+
+    @Test
     fun shouldFilter_filtersZeroDimensions() {
         val attrs = NoiseFilter.NodeFilterAttributes(
             isPassword = false,

@@ -77,6 +77,24 @@ class DeduplicationEngineTest {
     }
 
     @Test
+    fun filterUnread_anchorCutoffPrunesUnrecordedHeaderAboveAnchor() {
+        val s1 = createSentence("1", "第一段已讀內容。", top = 200)
+        val s2 = createSentence("2", "第二段錨點內容。", top = 400)
+        engine.recordRead(s1)
+        engine.recordRead(s2)
+
+        // After scroll, a mutated sticky timestamp header appears above s2, followed by new s3
+        val mutatedStickyHeader = createSentence("header", "更新於 2 分鐘前", top = 80)
+        val anchorOnNewScreen = createSentence("2_new", "第二段錨點內容。", top = 300)
+        val s3 = createSentence("3", "第三段全新內容。", top = 600)
+
+        val unread = engine.filterUnread(listOf(mutatedStickyHeader, anchorOnNewScreen, s3), 2000)
+
+        assertEquals("Lines above the matched tail anchor must be pruned as overlap", 1, unread.size)
+        assertEquals("第三段全新內容。", unread[0].text)
+    }
+
+    @Test
     fun reset_clearsAllHistory() {
         val s1 = createSentence("1", "已讀句子。")
         engine.recordRead(s1)

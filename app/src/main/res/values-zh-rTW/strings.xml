@@ -36,11 +36,13 @@
 
     <!-- Main Settings UI -->
     <string name="settings_title">AAR 設定</string>
+    <string name="status_label_format">目前狀態：%1$s</string>
     <string name="service_status_active">無障礙服務正常運作中</string>
     <string name="service_status_disabled">無障礙服務尚未啟用</string>
     <string name="service_enable_button">啟用無障礙服務</string>
     <string name="speech_rate_label">朗讀速度</string>
     <string name="speech_pitch_label">語音音調</string>
+    <string name="pause_duration_label">段落間停頓延遲</string>
     <string name="scroll_mode_label">自動捲動模式</string>
     <string name="scroll_mode_node">容器原生捲動（優先）</string>
     <string name="scroll_mode_gesture">模擬滑動手勢（強制）</string>
@@ -51,6 +53,7 @@
     <string name="language_auto">自動辨識（中英雙語）</string>
     <string name="language_zh_tw">繁體中文</string>
     <string name="language_en_us">英文 (US)</string>
+    <string name="btn_install_tts_data">檢查 / 安裝離線語音包</string>
     <string name="btn_start_reading">開始朗讀</string>
     <string name="btn_pause_reading">暫停朗讀</string>
     <string name="btn_resume_reading">繼續朗讀</string>

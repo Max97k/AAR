@@ -8,6 +8,8 @@ import android.view.accessibility.AccessibilityNodeInfo
  */
 object NoiseFilter {
 
+    private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
+
     val BLACKLISTED_EXACT_LABELS = setOf(
         // Traditional / Simplified Chinese controls
         "複製", "分享", "返回", "更多選項", "更多", "讚", "留言", "關閉", "搜尋",
@@ -47,9 +49,10 @@ object NoiseFilter {
             return true
         }
 
-        // 3. Exclude AAR's own overlay windows
+        // 3. Exclude AAR's own overlay windows and Android SystemUI status/navigation bars
         if (attributes.packageName == overlayPackageName ||
-            attributes.packageName == "$overlayPackageName.debug"
+            attributes.packageName == "$overlayPackageName.debug" ||
+            attributes.packageName == SYSTEM_UI_PACKAGE
         ) {
             return true
         }

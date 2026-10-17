@@ -1,9 +1,11 @@
 package com.aar.reader.ui
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aar.reader.data.IUserPreferencesRepository
 import com.aar.reader.data.UserPreferences
+import com.aar.reader.service.AutoReaderAccessibilityService
 import com.aar.reader.service.ReaderStateController
 import com.aar.reader.service.model.ReaderState
 import kotlinx.coroutines.flow.SharingStarted
@@ -69,7 +71,8 @@ class SettingsViewModel(
     fun toggleReading() {
         val currentState = readerState.value
         if (currentState == ReaderState.IDLE || currentState == ReaderState.COMPLETED) {
-            ReaderStateController.startReading()
+            val targetPkg = AutoReaderAccessibilityService.resolveCurrentTargetPackage().orEmpty()
+            ReaderStateController.startReading(targetPkg)
         } else if (currentState == ReaderState.PAUSED) {
             ReaderStateController.resumeReading()
         } else {
@@ -79,5 +82,17 @@ class SettingsViewModel(
 
     fun stopReading() {
         ReaderStateController.stopReading()
+    }
+
+    class Factory(
+        private val preferencesRepository: IUserPreferencesRepository
+    ) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
+                return SettingsViewModel(preferencesRepository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+        }
     }
 }

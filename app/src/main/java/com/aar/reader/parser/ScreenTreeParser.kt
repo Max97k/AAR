@@ -27,8 +27,13 @@ object ScreenTreeParser : IScreenTreeParser {
         fun dfs(node: AccessibilityNodeInfo?) {
             if (node == null) return
 
-            // Check if this node is a candidate scrollable container
-            if (node.isScrollable) {
+            val nodePkg = node.packageName?.toString()
+            val isExcludedPackage = nodePkg == overlayPackageName ||
+                nodePkg == "$overlayPackageName.debug" ||
+                nodePkg == "com.android.systemui"
+
+            // Check if this node is a visible candidate scrollable container
+            if (node.isScrollable && node.isVisibleToUser && !isExcludedPackage) {
                 val bounds = Rect()
                 node.getBoundsInScreen(bounds)
                 val area = (bounds.right - bounds.left) * (bounds.bottom - bounds.top)
@@ -56,7 +61,7 @@ object ScreenTreeParser : IScreenTreeParser {
                             text = content,
                             bounds = bounds,
                             windowId = node.windowId,
-                            packageName = node.packageName?.toString() ?: ""
+                            packageName = nodePkg ?: ""
                         )
                     )
                 }

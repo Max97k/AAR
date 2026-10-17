@@ -43,6 +43,27 @@ object ReaderStateController : IReaderStateController {
     private val _targetPackage = MutableStateFlow<String?>(null)
     override val targetPackage: StateFlow<String?> = _targetPackage.asStateFlow()
 
+    private var pendingSkipDelta: Int = 0
+    private var skipListener: ((Int) -> Unit)? = null
+
+    /**
+     * Registers a listener notified when skipForward (+1) or skipBackward (-1) is triggered.
+     */
+    fun setOnSkipListener(listener: ((Int) -> Unit)?) {
+        synchronized(lock) {
+            skipListener = listener
+        }
+    }
+
+    /**
+     * Atomically consumes and resets any pending sentence skip delta (+1 or -1).
+     */
+    fun consumePendingSkipDelta(): Int = synchronized(lock) {
+        val delta = pendingSkipDelta
+        pendingSkipDelta = 0
+        delta
+    }
+
     /**
      * Atomically returns the current state and target package snapshot.
      */
@@ -61,6 +82,7 @@ object ReaderStateController : IReaderStateController {
         synchronized(lock) {
             if (_state.value == ReaderState.IDLE || _state.value == ReaderState.COMPLETED) {
                 // Ensure state is marked active before targetPackage is populated to preserve atomic invariant
+                pendingSkipDelta = 0
                 _state.value = ReaderState.SCANNING
                 _targetPackage.value = packageName.ifBlank { null }
             }
@@ -96,6 +118,7 @@ object ReaderStateController : IReaderStateController {
     override fun stopReading() {
         synchronized(lock) {
             // Nullify target and sentence before transitioning to IDLE to preserve atomic invariant
+            pendingSkipDelta = 0
             _targetPackage.value = null
             _currentSentence.value = null
             _state.value = ReaderState.IDLE
@@ -103,15 +126,27 @@ object ReaderStateController : IReaderStateController {
     }
 
     override fun skipForward() {
+        val listenerToNotify: ((Int) -> Unit)?
         synchronized(lock) {
-            // Implemented in M2/M3 sentence queue
+            if (_state.value != ReaderState.SPEAKING && _state.value != ReaderState.SCANNING) {
+                return
+            }
+            pendingSkipDelta += 1
+            listenerToNotify = skipListener
         }
+        listenerToNotify?.invoke(1)
     }
 
     override fun skipBackward() {
+        val listenerToNotify: ((Int) -> Unit)?
         synchronized(lock) {
-            // Implemented in M2/M3 sentence queue
+            if (_state.value != ReaderState.SPEAKING && _state.value != ReaderState.SCANNING) {
+                return
+            }
+            pendingSkipDelta -= 1
+            listenerToNotify = skipListener
         }
+        listenerToNotify?.invoke(-1)
     }
 
     override fun onUtteranceStart(utteranceId: String) {
@@ -125,7 +160,7 @@ object ReaderStateController : IReaderStateController {
 
     override fun onUtteranceDone(utteranceId: String) {
         synchronized(lock) {
-            // Lifecycle managed by TTS controller in M3
+            // Utterance completion lifecycle is coordinated by AutoReaderAccessibilityService
         }
     }
 
@@ -147,6 +182,7 @@ object ReaderStateController : IReaderStateController {
                 return
             }
             if (newState == ReaderState.IDLE) {
+                pendingSkipDelta = 0
                 _targetPackage.value = null
                 _currentSentence.value = null
             }

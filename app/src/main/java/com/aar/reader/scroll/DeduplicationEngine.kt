@@ -27,10 +27,15 @@ class DeduplicationEngine(
 
     @Synchronized
     override fun recordRead(sentence: SentenceUnit) {
+        val normalized = normalizeText(sentence.text)
+        if (normalized.isEmpty()) return
+
         val hash = computeNormalizedHash(sentence.text)
         if (readFingerprints.size >= maxHistorySize) {
             val removed = readFingerprints.removeFirst()
-            readFingerprintSet.remove(removed)
+            if (!readFingerprints.contains(removed)) {
+                readFingerprintSet.remove(removed)
+            }
         }
         readFingerprints.addLast(hash)
         readFingerprintSet.add(hash)
@@ -38,7 +43,7 @@ class DeduplicationEngine(
         if (tailAnchors.size >= maxTailAnchors) {
             tailAnchors.removeFirst()
         }
-        tailAnchors.addLast(normalizeText(sentence.text))
+        tailAnchors.addLast(normalized)
     }
 
     @Synchronized
@@ -49,23 +54,33 @@ class DeduplicationEngine(
         if (sentences.isEmpty()) return emptyList()
         if (readFingerprintSet.isEmpty()) return sentences
 
-        val unreadList = mutableListOf<SentenceUnit>()
-        var foundAnchorCutoff = false
-
-        // Check if any sentence near top matches the last tail anchor
-        val lastAnchor = tailAnchors.lastOrNull()
-
-        for (sentence in sentences) {
-            val normalized = normalizeText(sentence.text)
-            val hash = computeNormalizedHash(sentence.text)
-
-            // If we match the tail anchor, anything above or at it is considered overlap
-            if (lastAnchor != null && normalized == lastAnchor) {
-                foundAnchorCutoff = true
-                continue
+        // Pass 1: Tail-Anchor Viewport Cutoff
+        // Find the latest sentence index in the upper/middle viewport that matches our most recent tail anchors.
+        // Anything at or above the matched tail anchor is viewport overlap from before the scroll.
+        var anchorCutoffIndex = -1
+        val anchorsNewestFirst = tailAnchors.toList().asReversed()
+        for (anchor in anchorsNewestFirst) {
+            if (anchor.isEmpty()) continue
+            val matchedIndex = sentences.indexOfLast { sentence ->
+                normalizeText(sentence.text) == anchor &&
+                    (screenHeight <= 0 || sentence.boundsInScreen.top <= (screenHeight * 0.85f).toInt())
             }
+            if (matchedIndex >= 0) {
+                anchorCutoffIndex = matchedIndex
+                break
+            }
+        }
 
-            // Check against sliding window fingerprint set
+        // Pass 2: Sliding-Window Fingerprint Filtering after the anchor cutoff
+        val unreadList = mutableListOf<SentenceUnit>()
+        val startIndex = anchorCutoffIndex + 1
+
+        for (i in startIndex until sentences.size) {
+            val sentence = sentences[i]
+            val normalized = normalizeText(sentence.text)
+            if (normalized.isEmpty()) continue
+
+            val hash = computeNormalizedHash(sentence.text)
             if (readFingerprintSet.contains(hash)) {
                 // Already read sentence in viewport overlap
                 continue

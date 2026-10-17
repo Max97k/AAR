@@ -26,7 +26,8 @@ class TtsController(
     private val audioFocusManager: AudioFocusManager? = null,
     private val onUtteranceStarted: (String) -> Unit = {},
     private val onUtteranceCompleted: (String) -> Unit = {},
-    private val onUtteranceError: (String, Int) -> Unit = { _, _ -> }
+    private val onUtteranceError: (String, Int) -> Unit = { _, _ -> },
+    private val onUtteranceStopped: (String, Boolean) -> Unit = { _, _ -> }
 ) : ITtsController {
 
     private var tts: TextToSpeech? = null
@@ -70,7 +71,9 @@ class TtsController(
             }
 
             override fun onStop(utteranceId: String?, interrupted: Boolean) {
-                utteranceId?.let { onUtteranceCompleted(it) }
+                // Separate interrupted/stopped callback from normal completion to prevent
+                // prematurely marking interrupted sentences as read in DeduplicationEngine.
+                utteranceId?.let { onUtteranceStopped(it, interrupted) }
             }
         })
     }
@@ -97,10 +100,17 @@ class TtsController(
             engine.setSpeechRate(rate.coerceIn(0.5f, 2.0f))
             engine.setPitch(pitch.coerceIn(0.5f, 1.5f))
 
+            val maxInputLength = TextToSpeech.getMaxSpeechInputLength().coerceAtLeast(400)
+            val safeText = if (sentence.text.length > maxInputLength) {
+                sentence.text.substring(0, maxInputLength)
+            } else {
+                sentence.text
+            }
+
             val params = Bundle().apply {
                 putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, sentence.id)
             }
-            val result = engine.speak(sentence.text, TextToSpeech.QUEUE_FLUSH, params, sentence.id)
+            val result = engine.speak(safeText, TextToSpeech.QUEUE_FLUSH, params, sentence.id)
             result == TextToSpeech.SUCCESS
         } ?: false
     }

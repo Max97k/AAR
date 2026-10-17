@@ -5,6 +5,8 @@
 **A modern, lightweight, privacy-first Android Accessibility auto-reader that extracts on-screen text, speaks it aloud via native TTS, and automatically scrolls continuously until the end of the page.**
 
 [![Platform](https://img.shields.io/badge/Platform-Android%2017%20(API%2037%2B)-3DDC84?style=flat-square&logo=android&logoColor=white)](https://android.com)
+[![Version](https://img.shields.io/badge/Version-v1.1.0-blue?style=flat-square)](https://github.com/Max97k/AAR)
+[![Tests](https://img.shields.io/badge/Tests-85%2F85%20Passing-brightgreen?style=flat-square)](https://github.com/Max97k/AAR)
 [![Target Device](https://img.shields.io/badge/Target-Google%20Pixel%208%20Pro-4285F4?style=flat-square&logo=google&logoColor=white)](https://store.google.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20%7C%20Material%203-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
@@ -34,9 +36,11 @@ Unlike cloud-based screen readers or third-party voice assistants, AAR processes
 | 🔄 **Continuous Auto-Scroll** | Dual-engine downward scrolling: prioritizes native `ACTION_SCROLL_FORWARD` node actions and seamlessly falls back to smooth `dispatchGesture` swipe paths. |
 | 🛡️ **Overlap Deduplication** | Sliding-window text fingerprint buffer prevents re-reading overlapping paragraphs remaining at the top of the screen after a scroll gesture. |
 | 🛑 **Bottom-of-Page Detection** | Automatically detects when a page can no longer scroll or no new text appears, gracefully concluding the reading session. |
-| ⚡ **Quick Settings Tile & HUD** | Toggle reading instantly from the system Quick Settings (`TileService`) or control playback via a compact `TYPE_ACCESSIBILITY_OVERLAY` floating pill. |
+| ⚡ **Quick Settings Tile & Enhanced HUD** | Toggle reading instantly from system Quick Settings (`TileService`) or control playback via a collapsible `TYPE_ACCESSIBILITY_OVERLAY` floating pill with **Skip Previous/Next (`⏮`/`⏭`)**, **Quick Speed Cycler (`1.0x`)**, and Play/Pause. |
+| 🛡️ **Two-Pass Overlap Deduplication** | Two-pass deduplication: Pass 1 tail-anchor window cutoff eliminates dynamic headers and overlapping viewport text; Pass 2 64-bit FNV-1a sliding-window fingerprint ring buffer filters already-read sentences. |
+| 🛑 **Smart Bottom-of-Page Detection** | Accurately identifies page bottom using pre-scroll baseline screen signature comparison and handles blank pages without false-positive premature completions. |
 | 🎯 **Visual Reading Highlight** | Optional Material 3 highlight box overlay that tracks and frames the currently spoken paragraph in real time on screen. |
-| 🗣️ **Native TTS & Offline Pack Check** | Supports adjustable speech rate (`0.5x` – `2.0x`), Traditional Chinese (`zh-TW`) & English (`en-US`) switching, and offline voice pack verification. |
+| 🗣️ **Native TTS & Offline Pack Check** | Supports adjustable speech rate (`0.5x` – `2.0x`), inter-sentence pause slider (`0ms` – `500ms`), Traditional Chinese (`zh-TW`) & English (`en-US`) switching, decimal number (`3.14`) protection, and direct offline voice pack installation. |
 ## 📱 Screenshots (Tested on Google Pixel 8 Pro • Android 17)
 
 <div align="center">
@@ -133,6 +137,7 @@ flowchart LR
     M3 --> M4["M4: Dual Auto-Scroll & Deduplication"]
     M4 --> M5["M5: Overlay HUD & Material 3 UI"]
     M5 --> M6["M6: Pixel 8 Pro QA & Release"]
+    M6 --> M7["M7: v1.1.0 Audit, Hardening & Refinement"]
 ```
 
 | Milestone | Phase | Key Deliverables | Status |
@@ -142,7 +147,8 @@ flowchart LR
 | **M3** | **Native TTS & AudioFocus** | • `TtsController` with `UtteranceProgressListener` & offline voice pack check<br>• `zh-TW` / `en-US` switching + smart bilingual character-ratio detection<br>• `AudioFocus` & `ACTION_AUDIO_BECOMING_NOISY` auto-pause | ✅ Completed |
 | **M4** | **Dual Auto-Scroll & Deduplication** | • `AutoScrollEngine`: priority `ACTION_SCROLL_FORWARD` + fallback `dispatchGesture`<br>• `SETTLING` debounce (450ms) & Sliding Window Fingerprint deduplication<br>• Bottom-of-page detection & app-switch / notification-shade / screen-off guards | ✅ Completed |
 | **M5** | **Overlay HUD & Material 3 UI** | • `TYPE_ACCESSIBILITY_OVERLAY` floating control pill & real-time reading highlight box<br>• Jetpack Compose M3 Settings screen (`MainActivity`, `SettingsViewModel`)<br>• Reactive persistence via Jetpack DataStore | ✅ Completed |
-| **M6** | **Pixel 8 Pro QA & Release** | • 76/76 unit tests passing<br>• End-to-end verified on **Google Pixel 8 Pro** (API 37)<br>• Zero-network verified, clean background lifecycle detachment | ✅ Completed & Verified |
+| **M6** | **Pixel 8 Pro QA & Release** | • End-to-end verified on **Google Pixel 8 Pro** (API 37)<br>• Zero-network verified, clean background lifecycle detachment | ✅ Completed & Verified |
+| **M7** | **v1.1.0 Audit, Hardening & Refinement** | • 9 critical root-cause bug fixes (completion announcement race, 2-pass dedup, baseline signature bottom detection, async gesture await, HUD bidirectional sentence skipping & speed toggle, decimal split protection, SystemUI filter, ViewModelProvider lifecycle)<br>• 85/85 unit tests passing (100% success rate)<br>• R8 / ProGuard release rules fortified | ✅ Completed & Verified |
 
 ---
 

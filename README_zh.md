@@ -5,6 +5,8 @@
 **一款現代化、輕量、極度注重隱私的開源 Android 無障礙輔助應用，即時解析螢幕可見文字並透過原生 TTS 語音朗讀，讀畢後自動向下捲動翻頁直至頁面底部。**
 
 [![平台支援](https://img.shields.io/badge/平台-Android%2017%20(API%2037%2B)-3DDC84?style=flat-square&logo=android&logoColor=white)](https://android.com)
+[![版本](https://img.shields.io/badge/版本-v1.1.0-blue?style=flat-square)](https://github.com/Max97k/AAR)
+[![單元測試](https://img.shields.io/badge/單元測試-85%2F85%20通過-brightgreen?style=flat-square)](https://github.com/Max97k/AAR)
 [![目標機型](https://img.shields.io/badge/測試平台-Google%20Pixel%208%20Pro-4285F4?style=flat-square&logo=google&logoColor=white)](https://store.google.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20%7C%20Material%203-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
@@ -29,15 +31,15 @@
 
 | 功能 | 說明 |
 | :--- | :--- |
-| 🧠 **智慧 DFS 視圖樹解析** | 透過深度優先搜尋（DFS）遍歷 `AccessibilityNodeInfo` 節點樹，依螢幕絕對座標（由上至下、由左至右）重組自然閱讀佇列。 |
+| 🧠 **智慧 DFS 視圖樹解析** | 透過深度優先搜尋（DFS）遍歷 `AccessibilityNodeInfo` 節點樹，排除系統狀態列（`com.android.systemui`）雜訊，依螢幕絕對座標（由上至下、由左至右）重組自然閱讀佇列。 |
 | 🧹 **噪音與控制鈕智慧過濾** | 自動排除隱藏節點、純裝飾圖示、密碼欄位，以及系統無關控制標籤（如「複製」、「分享」、「返回」、「更多選項」）。 |
-| 🔄 **雙軌連續自動捲動** | 優先呼叫原生可捲動容器之 `ACTION_SCROLL_FORWARD`，並支援平滑模擬手勢滑動（`dispatchGesture`）作為 Fallback，相容各類 App。 |
-| 🛡️ **捲動重疊文字去重** | 內建滑動視窗文字指紋比對（Sliding Window Fingerprint），自動跳過捲動後殘留於畫面頂部的已讀段落，不重複朗讀。 |
-| 🛑 **智慧觸底偵測** | 當頁面無法繼續捲動或捲動後無新增未讀文字時，自動判定到達頁面底部並優雅結束朗讀任務。 |
-| ⚡ **下拉快捷磁貼與懸浮膠囊** | 整合系統下拉控制中心 `TileService` 一鍵啟停，並提供免額外權限的 `TYPE_ACCESSIBILITY_OVERLAY` 迷你懸浮控制列。 |
+| 🔄 **雙軌連續自動捲動** | 優先呼叫原生可捲動容器之 `ACTION_SCROLL_FORWARD`，並支援平滑模擬手勢滑動（`dispatchGesture`，含 350ms 非同步等待與慣性防抖）作為 Fallback，相容各類 App。 |
+| 🛡️ **兩階段重疊文字去重** | 結合 Pass 1 尾端錨點視窗截斷（消除動態頂部標頭與視窗殘留）與 Pass 2 64-bit FNV-1a 滑動視窗指紋過濾，徹底解決文字重複朗讀問題。 |
+| 🛑 **基準特徵碼智慧觸底偵測** | 記錄捲動前基準簽章並與捲動後精準比對，修復空白頁重複累計問題，並以非同步協程等待「已朗讀至底部」完成提示音完整播報完畢後優雅重置。 |
+| ⚡ **快捷磁貼與全功能懸浮膠囊** | 整合系統下拉 `TileService`，懸浮膠囊升級支援 **上一句/下一句跳轉（`⏮`/`⏭`）**、**語速快速循環切換（`1.0x`）** 與點擊收合/展開。 |
 | 🎯 **即時朗讀焦點高亮框** | 支援於螢幕當前朗讀段落繪製 Material 3 視覺焦點外框（Highlight Overlay），清楚掌握目前閱讀位置。 |
-| 🗣️ **原生 TTS 與離線語音檢查** | 支援 `0.5x ~ 2.0x` 語速滑桿調節、繁體中文（`zh-TW`）與英文（`en-US`）切換，並主動檢測系統高品質離線語音包狀態。 |
-| 🎧 **音訊焦點與中斷安全保護** | 整合 `AudioFocus` 與系統廣播，於來電、拔除耳機、手動切換 App 或螢幕關閉時自動暫停朗讀與停止手勢派發。 |
+| 🗣️ **原生 TTS 與段落微調** | 支援 `0.5x ~ 2.0x` 語速滑桿、`0ms ~ 500ms` 段落停頓延遲調整、數字小數點/版本號（如 `3.14`）防斷句保護，並提供離線語音包安裝捷徑。 |
+| 🎧 **音訊焦點與中斷安全保護** | 整合 `AudioFocus` 與系統廣播，於來電、拔除耳機、手動切換 App 或螢幕關閉時自動暫停朗讀並保留未讀進度。 |
 | 🔒 **100% 離線與零知識隱私** | 完全無 `android.permission.INTERNET` 網路權限、不寫入本地磁碟日誌、無任何第三方追蹤或廣告 SDK。 |
 
 ---
@@ -138,6 +140,7 @@ flowchart LR
     M3 --> M4["M4: 雙軌自動捲動與指紋去重"]
     M4 --> M5["M5: 懸浮膠囊 HUD 與 M3 設定頁"]
     M5 --> M6["M6: Pixel 8 Pro 實機調校與發布"]
+    M6 --> M7["M7: v1.1.0 深度審查與架構強化"]
 ```
 
 | 里程碑 | 階段名稱 | 核心交付項目 (Deliverables) | 狀態 |
@@ -147,7 +150,8 @@ flowchart LR
 | **M3** | **原生 TTS 語音控制器與音訊焦點** | • `TtsController` 封裝、`UtteranceProgressListener` 綁定與離線語音包檢查<br>• 支援 `zh-TW` / `en-US` 手動切換與中英字元比例自動語系偵測<br>• 整合 `AudioFocus` 與耳機拔除廣播 (`ACTION_AUDIO_BECOMING_NOISY`) 自動暫停 | ✅ 已完成 |
 | **M4** | **雙軌自動捲動、去重與觸底偵測** | • `AutoScrollEngine`：優先呼叫節點 `ACTION_SCROLL_FORWARD` + Fallback `dispatchGesture`<br>• 捲動後 `SETTLING` 穩定防抖 (450ms) 與滑動視窗文字指紋去重<br>• 頁面觸底偵測、跨 App 切換鎖定、下拉通知欄凍結與螢幕關閉中斷保護 | ✅ 已完成 |
 | **M5** | **懸浮控制膠囊、視覺高亮與 M3 UI** | • 免額外權限 `TYPE_ACCESSIBILITY_OVERLAY` 懸浮控制膠囊与即時朗讀視覺高亮外框<br>• Jetpack Compose M3 主設定介面 (`MainActivity`, `SettingsViewModel`)<br>• Jetpack DataStore 偏好設定持久化與即時同步 | ✅ 已完成 |
-| **M6** | **Pixel 8 Pro 實機調校與測試發布** | • 76/76 完整單元測試全數通過<br>• **Google Pixel 8 Pro**（Android 17 API 37）實機完整驗證<br>• 零網路權限守則嚴格驗證、背景生命週期安全分離 | ✅ 已完成實機驗證 |
+| **M6** | **Pixel 8 Pro 實機調校與測試發布** | • **Google Pixel 8 Pro**（Android 17 API 37）實機完整驗證<br>• 零網路權限守則嚴格驗證、背景生命週期安全分離 | ✅ 已完成實機驗證 |
+| **M7** | **v1.1.0 深度審查與架構強化** | • 9 大核心根因修復（觸底播報競爭、兩階段錨點指紋去重、基準特徵碼觸底偵測、手勢 350ms 非同步防抖、懸浮膠囊上下句跳轉與語速切換、數字小數點斷句保護、系統狀態列過濾、ViewModelProvider 生命週期管理）<br>• 85/85 單元測試全數通過（100% 成功率）<br>• R8 / ProGuard 混淆規則強化 | ✅ 已完成實機驗證 |
 
 ---
 

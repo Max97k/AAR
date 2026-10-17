@@ -81,6 +81,7 @@ The system is organized into decoupled layers:
 | M4 | Dual Auto-Scroll & Deduplication | AutoScrollEngine (ACTION_SCROLL_FORWARD & dispatchGesture), 450ms settling debounce, DeduplicationEngine ring buffer, bottom detection, safety interruption guards | M2, M3 | COMPLETED |
 | M5 | Floating HUD & Compose Settings UI | OverlayHudController, HighlightOverlayView, MainActivity Jetpack Compose M3 UI, SettingsViewModel, UserPreferencesRepository DataStore, QS Tile sync | M1, M4 | COMPLETED |
 | M6 | Integration, Hardening & Release | Full integration pass, 100% E2E test verification, memory profiling, R8 optimization, assembleRelease APK | M1, M2, M3, M4, M5, TEST_READY | COMPLETED |
+| M7 | v1.1.0 Audit, Hardening & Refinement | 9 critical root-cause fixes (completion announcement race, two-pass dedup, baseline signature bottom detection, async gesture await, HUD bidirectional sentence skipping & speed toggle, decimal split protection, SystemUI noise filter, ViewModelProvider lifecycle), 85/85 unit tests passing | M6 | COMPLETED |
 
 In parallel:
 | Track | Name | Scope | Dependencies | Status |

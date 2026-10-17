@@ -50,6 +50,18 @@ class SentenceSplitterTest {
     }
 
     @Test
+    fun splitIntoSentences_preservesDecimalNumbersAndCompoundTerminators() {
+        val text = "目前版本為 v1.0.0，圓周率約為 3.14！真的嗎？！是的..."
+        val bounds = testRect(0, 0, 500, 100)
+        val sentences = SentenceSplitter.splitIntoSentences(text, bounds, 1, "com.example.app")
+
+        assertEquals(3, sentences.size)
+        assertEquals("目前版本為 v1.0.0，圓周率約為 3.14！", sentences[0].text)
+        assertEquals("真的嗎？！", sentences[1].text)
+        assertEquals("是的...", sentences[2].text)
+    }
+
+    @Test
     fun splitIntoSentences_subSplitsOverlongSentences() {
         val longText = "這是一段非常非常長的中文字串，中間有逗號區隔，但是整段文字長度超過了一百五十個字元限制，" +
             "我們希望自動斷句引擎能夠在逗號或者空白處進行次級切分，確保送到語音合成引擎的單次字串不會超標，" +

@@ -1,15 +1,15 @@
 package com.aar.reader.ui
 
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
-import android.view.accessibility.AccessibilityManager
+import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
+import androidx.lifecycle.ViewModelProvider
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,14 +19,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,14 +34,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,7 +52,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.aar.reader.R
 import com.aar.reader.data.UserPreferencesRepository
 import com.aar.reader.service.AutoReaderAccessibilityService
@@ -64,6 +59,7 @@ import com.aar.reader.service.model.ReaderState
 import com.aar.reader.ui.components.ProminentDisclosureDialog
 import com.aar.reader.ui.components.rememberProminentDisclosureState
 import com.aar.reader.ui.theme.AarTheme
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -72,7 +68,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val repo = UserPreferencesRepository(applicationContext)
-        val viewModel = SettingsViewModel(repo)
+        val viewModel = ViewModelProvider(
+            this,
+            SettingsViewModel.Factory(repo)
+        )[SettingsViewModel::class.java]
 
         setContent {
             AarTheme {
@@ -91,7 +90,8 @@ fun MainScreen(viewModel: SettingsViewModel) {
 
     var isServiceEnabled by remember { mutableStateOf(checkAccessibilityServiceEnabled(context)) }
     val disclosureState = rememberProminentDisclosureState(
-        initialVisible = !isServiceEnabled
+        initialVisible = !isServiceEnabled,
+        initialAccepted = isServiceEnabled
     )
 
     // Recheck accessibility service status on resume
@@ -112,8 +112,10 @@ fun MainScreen(viewModel: SettingsViewModel) {
         ProminentDisclosureDialog(
             state = disclosureState,
             onAgreeAdditional = {
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                context.startActivity(intent)
+                if (disclosureState.consumeRedirectRequest()) {
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    context.startActivity(intent)
+                }
             }
         )
     }
@@ -194,8 +196,12 @@ fun MainScreen(viewModel: SettingsViewModel) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = {
-                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                context.startActivity(intent)
+                                if (!disclosureState.isDisclosureAccepted) {
+                                    disclosureState.show()
+                                } else {
+                                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                    context.startActivity(intent)
+                                }
                             }
                         ) {
                             Text(stringResource(R.string.service_enable_button))
@@ -216,7 +222,7 @@ fun MainScreen(viewModel: SettingsViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Status: ${readerState.name}",
+                        text = stringResource(R.string.status_label_format, readerState.name),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -265,11 +271,11 @@ fun MainScreen(viewModel: SettingsViewModel) {
                 }
             }
 
-            // 3. Speech Rate & Pitch
+            // 3. Speech Rate, Pitch & Pause Between Sentences
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "${stringResource(R.string.speech_rate_label)}: ${String.format("%.1fx", preferences.speechRate)}",
+                        text = "${stringResource(R.string.speech_rate_label)}: ${String.format(Locale.US, "%.1fx", preferences.speechRate)}",
                         fontWeight = FontWeight.Medium
                     )
                     Slider(
@@ -282,7 +288,7 @@ fun MainScreen(viewModel: SettingsViewModel) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "${stringResource(R.string.speech_pitch_label)}: ${String.format("%.1fx", preferences.speechPitch)}",
+                        text = "${stringResource(R.string.speech_pitch_label)}: ${String.format(Locale.US, "%.1fx", preferences.speechPitch)}",
                         fontWeight = FontWeight.Medium
                     )
                     Slider(
@@ -291,10 +297,23 @@ fun MainScreen(viewModel: SettingsViewModel) {
                         valueRange = 0.5f..1.5f,
                         steps = 9
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "${stringResource(R.string.pause_duration_label)}: ${preferences.pauseBetweenSentencesMs} ms",
+                        fontWeight = FontWeight.Medium
+                    )
+                    Slider(
+                        value = preferences.pauseBetweenSentencesMs.toFloat(),
+                        onValueChange = { viewModel.setPauseDuration(it.toLong()) },
+                        valueRange = 0f..500f,
+                        steps = 9
+                    )
                 }
             }
 
-            // 4. Language Selector
+            // 4. Language Selector & Offline TTS Voice Pack Check
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -323,6 +342,21 @@ fun MainScreen(viewModel: SettingsViewModel) {
                             onClick = { viewModel.setLanguage("EN-US") },
                             label = { Text(stringResource(R.string.language_en_us)) }
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+                            } catch (e: Exception) {
+                                context.startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.btn_install_tts_data))
                     }
                 }
             }
