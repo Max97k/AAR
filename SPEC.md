@@ -6,7 +6,7 @@
 ---
 
 ## 2. 系統架構與環境設定
-* **最低支援版本：** Android 17 (API Level 37+) *(待確認：或支援 Android 8.0+ API 26+ / Android 14+ API 34+ 以相容現行市售 Pixel 8 Pro)*
+* **最低支援版本：** Android 17 (API Level 37+, `minSdk = 37`, `targetSdk = 37`, `compileSdk = 37`)
 * **目標測試平台：** Google Pixel 8 Pro
 * **開發語言與架構：** Kotlin 2.2+、Coroutines + StateFlow (UDF 單向資料流)、Jetpack Compose
 * **執行架構：** 採用 Android 原生 API 與官方標準實作，**100% 本地離線運作（無 `INTERNET` 網路權限）**
