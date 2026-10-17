@@ -55,7 +55,7 @@ android {
             all {
                 it.jvmArgs(
                     "-Drobolectric.dependency.repo.url=https://repo1.maven.org/maven2/",
-                    "-Drobolectric.default.sdk=36",
+                    "-Drobolectric.default.sdk=34",
                     "--add-opens=java.base/java.lang=ALL-UNNAMED",
                     "--add-opens=java.base/java.util=ALL-UNNAMED",
                     "--enable-native-access=ALL-UNNAMED"
