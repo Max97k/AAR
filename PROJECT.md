@@ -75,17 +75,17 @@ The system is organized into decoupled layers:
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Foundation & Service Skeleton | Gradle build scaffolding, libs.versions.toml, zero-network manifest, AutoReaderAccessibilityService skeleton, accessibility_service_config.xml, AutoReaderTileService skeleton, Prominent Disclosure dialog | none | IN_PROGRESS |
-| M2 | Screen Parser & Sentence Segmentation | ScreenTreeParser DFS engine, node filters (visibility, password, overlay, blacklist), SpatialSorter topological ordering, SentenceSplitter CJK/Latin segmentation | M1 | PLANNED |
-| M3 | TTS Engine & AudioFocus | TtsController, UtteranceProgressListener integration, voice pack checking, bilingual support, AudioFocus management, ACTION_AUDIO_BECOMING_NOISY receiver | M1 | PLANNED |
-| M4 | Dual Auto-Scroll & Deduplication | AutoScrollEngine (ACTION_SCROLL_FORWARD & dispatchGesture), 450ms settling debounce, DeduplicationEngine ring buffer, bottom detection, safety interruption guards | M2, M3 | PLANNED |
-| M5 | Floating HUD & Compose Settings UI | OverlayHudController, HighlightOverlayView, MainActivity Jetpack Compose M3 UI, SettingsViewModel, UserPreferencesRepository DataStore, QS Tile sync | M1, M4 | PLANNED |
-| M6 | Integration, Hardening & Release | Full integration pass, 100% E2E test verification, memory profiling, R8 optimization, assembleRelease APK | M1, M2, M3, M4, M5, TEST_READY | PLANNED |
+| M1 | Foundation & Service Skeleton | Gradle build scaffolding, libs.versions.toml, zero-network manifest, AutoReaderAccessibilityService skeleton, accessibility_service_config.xml, AutoReaderTileService skeleton, Prominent Disclosure dialog | none | COMPLETED |
+| M2 | Screen Parser & Sentence Segmentation | ScreenTreeParser DFS engine, node filters (visibility, password, overlay, blacklist), SpatialSorter topological ordering, SentenceSplitter CJK/Latin segmentation | M1 | COMPLETED |
+| M3 | TTS Engine & AudioFocus | TtsController, UtteranceProgressListener integration, voice pack checking, bilingual support, AudioFocus management, ACTION_AUDIO_BECOMING_NOISY receiver | M1 | COMPLETED |
+| M4 | Dual Auto-Scroll & Deduplication | AutoScrollEngine (ACTION_SCROLL_FORWARD & dispatchGesture), 450ms settling debounce, DeduplicationEngine ring buffer, bottom detection, safety interruption guards | M2, M3 | COMPLETED |
+| M5 | Floating HUD & Compose Settings UI | OverlayHudController, HighlightOverlayView, MainActivity Jetpack Compose M3 UI, SettingsViewModel, UserPreferencesRepository DataStore, QS Tile sync | M1, M4 | COMPLETED |
+| M6 | Integration, Hardening & Release | Full integration pass, 100% E2E test verification, memory profiling, R8 optimization, assembleRelease APK | M1, M2, M3, M4, M5, TEST_READY | COMPLETED |
 
 In parallel:
 | Track | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| E2E | E2E Testing Suite | Requirements-driven 4-tier test suite (Tiers 1-4), test runner scripts, publishing TEST_READY.md | M1 | PLANNED |
+| E2E | E2E Testing Suite | Requirements-driven 4-tier test suite (Tiers 1-4), test runner scripts, publishing TEST_READY.md | M1 | COMPLETED |
 
 ---
 

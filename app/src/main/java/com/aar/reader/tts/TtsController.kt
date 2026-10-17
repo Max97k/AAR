@@ -11,7 +11,7 @@ import java.util.Locale
 interface ITtsController {
     val isInitialized: Boolean
     fun initialize(onInitSuccess: () -> Unit = {}, onInitFailure: () -> Unit = {})
-    fun speak(sentence: SentenceUnit, rate: Float = 1.0f, pitch: Float = 1.0f, language: String = "AUTO")
+    fun speak(sentence: SentenceUnit, rate: Float = 1.0f, pitch: Float = 1.0f, language: String = "AUTO"): Boolean
     fun stop()
     fun shutdown()
     fun setSpeechRate(rate: Float)
@@ -70,7 +70,7 @@ class TtsController(
             }
 
             override fun onStop(utteranceId: String?, interrupted: Boolean) {
-                // Utterance stopped/interrupted
+                utteranceId?.let { onUtteranceCompleted(it) }
             }
         })
     }
@@ -80,8 +80,8 @@ class TtsController(
         rate: Float,
         pitch: Float,
         language: String
-    ) {
-        if (!isInitialized || tts == null) return
+    ): Boolean {
+        if (!isInitialized || tts == null) return false
 
         // Request audio focus before speech synthesis
         audioFocusManager?.requestAudioFocus()
@@ -92,16 +92,17 @@ class TtsController(
             else -> detectLanguage(sentence.text)
         }
 
-        tts?.apply {
-            setLanguage(targetLocale)
-            setSpeechRate(rate.coerceIn(0.5f, 2.0f))
-            setPitch(pitch.coerceIn(0.5f, 1.5f))
+        return tts?.let { engine ->
+            engine.setLanguage(targetLocale)
+            engine.setSpeechRate(rate.coerceIn(0.5f, 2.0f))
+            engine.setPitch(pitch.coerceIn(0.5f, 1.5f))
 
             val params = Bundle().apply {
                 putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, sentence.id)
             }
-            speak(sentence.text, TextToSpeech.QUEUE_FLUSH, params, sentence.id)
-        }
+            val result = engine.speak(sentence.text, TextToSpeech.QUEUE_FLUSH, params, sentence.id)
+            result == TextToSpeech.SUCCESS
+        } ?: false
     }
 
     override fun stop() {

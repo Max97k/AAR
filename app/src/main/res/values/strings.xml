@@ -39,4 +39,20 @@
     <string name="service_status_active">Service Active &amp; Bound</string>
     <string name="service_status_disabled">Service Not Enabled</string>
     <string name="service_enable_button">Enable Service</string>
+    <string name="speech_rate_label">Speech Rate</string>
+    <string name="speech_pitch_label">Speech Pitch</string>
+    <string name="scroll_mode_label">Auto-Scroll Mode</string>
+    <string name="scroll_mode_node">Container Action (Prioritized)</string>
+    <string name="scroll_mode_gesture">Simulated Gesture (Forced)</string>
+    <string name="scroll_percent_label">Scroll Distance</string>
+    <string name="highlight_toggle_label">Reading Focus Highlight Frame</string>
+    <string name="highlight_toggle_desc">Draw a visual border around active sentence on screen</string>
+    <string name="language_selector_label">Reading Language</string>
+    <string name="language_auto">Auto Detect (Bilingual)</string>
+    <string name="language_zh_tw">Traditional Chinese</string>
+    <string name="language_en_us">English (US)</string>
+    <string name="btn_start_reading">Start Reading</string>
+    <string name="btn_pause_reading">Pause Reading</string>
+    <string name="btn_resume_reading">Resume Reading</string>
+    <string name="btn_stop_reading">Stop Reading</string>
 </resources>
